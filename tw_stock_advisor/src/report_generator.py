@@ -168,6 +168,98 @@ class ReportGenerator:
         ]
         return "\n".join(lines)
 
+    def build_daily_sheet_sections(
+        self,
+        recommendations: pd.DataFrame,
+        market_regime: dict,
+        report_date: date,
+    ) -> list[tuple[str, pd.DataFrame]]:
+        held = recommendations[recommendations.get("shares", 0).fillna(0) > 0].copy()
+        trades = recommendations[recommendations["action"].isin(["BUY", "ADD", "REDUCE", "SELL"])].copy()
+        watch = recommendations[recommendations["action"].eq("WATCH")].copy()
+        return [
+            (
+                "一、市場狀態",
+                pd.DataFrame(
+                    [
+                        {"日期": report_date.isoformat(), "市場狀態": market_regime["regime"], "市場分數": market_regime["score"]},
+                        *[
+                            {"日期": report_date.isoformat(), "市場狀態": market_regime["regime"], "市場分數": market_regime["score"], "說明": reason}
+                            for reason in market_regime.get("reasons", [])
+                        ],
+                    ]
+                ),
+            ),
+            (
+                "二、目前持股",
+                self._rename_for_sheet(
+                    held,
+                    ["ticker", "name", "shares", "lots", "current_price", "market_value", "unrealized_pnl_pct", "current_weight", "target_weight", "action"],
+                ),
+            ),
+            (
+                "三、本日建議交易",
+                self._rename_for_sheet(trades, ["ticker", "name", "action", "total_score", "current_weight", "target_weight", "reason"]),
+            ),
+            (
+                "四、觀察清單",
+                self._rename_for_sheet(watch, ["ticker", "name", "asset_type", "sector", "total_score", "reason"]),
+            ),
+        ]
+
+    def build_weekly_sheet_sections(
+        self,
+        recommendations: pd.DataFrame,
+        rebalance_plan: pd.DataFrame,
+        market_regime: dict,
+        report_date: date,
+    ) -> list[tuple[str, pd.DataFrame]]:
+        held = recommendations[recommendations.get("shares", 0).fillna(0) > 0].copy()
+        new_candidates = recommendations[recommendations["action"].isin(["BUY", "WATCH"])].copy()
+        risk_items = recommendations[recommendations["action"].isin(["REDUCE", "SELL"])].copy()
+        summary = pd.DataFrame(
+            [
+                {
+                    "日期": report_date.isoformat(),
+                    "市場狀態": market_regime["regime"],
+                    "市場分數": market_regime["score"],
+                    "BUY": int((recommendations["action"] == "BUY").sum()),
+                    "ADD": int((recommendations["action"] == "ADD").sum()),
+                    "REDUCE": int((recommendations["action"] == "REDUCE").sum()),
+                    "SELL": int((recommendations["action"] == "SELL").sum()),
+                }
+            ]
+        )
+        regime_reasons = pd.DataFrame(
+            [{"市場狀態": market_regime["regime"], "說明": reason} for reason in market_regime.get("reasons", [])]
+        )
+        return [
+            ("一、本週投資結論", summary),
+            ("二、市場狀態說明", regime_reasons),
+            (
+                "三、持股檢查",
+                self._rename_for_sheet(
+                    held,
+                    ["ticker", "name", "asset_type", "current_weight", "target_weight", "max_weight", "total_score", "action", "reason"],
+                ),
+            ),
+            (
+                "四、建議交易清單",
+                self._rename_for_sheet(
+                    rebalance_plan,
+                    ["ticker", "name", "action", "current_shares", "target_shares", "trade_shares", "estimated_trade_value", "reason"],
+                ),
+            ),
+            (
+                "五、新候選股票",
+                self._rename_for_sheet(new_candidates, ["ticker", "name", "asset_type", "sector", "total_score", "action", "reason"]),
+            ),
+            (
+                "六、主要風險",
+                self._rename_for_sheet(risk_items, ["ticker", "name", "asset_type", "current_weight", "max_weight", "total_score", "action", "reason"]),
+            ),
+        ]
+
     def _estimate_target_shares(self, row: pd.Series) -> int:
         current_price = float(row.get("current_price", 0) or 0)
         total_value = float(row.get("portfolio_total_value", 0) or 0)
@@ -218,3 +310,34 @@ class ReportGenerator:
             f"系統建議 BUY {buy_count} 檔、ADD {add_count} 檔、"
             f"REDUCE {reduce_count} 檔、SELL {sell_count} 檔。"
         )
+
+    @staticmethod
+    def _rename_for_sheet(df: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
+        if df.empty:
+            return pd.DataFrame()
+        table = df.copy()
+        for column in columns:
+            if column not in table.columns:
+                table[column] = ""
+        rename_map = {
+            "ticker": "代號",
+            "name": "名稱",
+            "asset_type": "資產類型",
+            "sector": "產業",
+            "shares": "股數",
+            "lots": "張數",
+            "current_price": "目前價格",
+            "market_value": "市值",
+            "unrealized_pnl_pct": "未實現損益率",
+            "current_weight": "目前權重",
+            "target_weight": "目標權重",
+            "max_weight": "風控上限",
+            "action": "建議",
+            "total_score": "總分",
+            "reason": "原因",
+            "current_shares": "目前股數",
+            "target_shares": "目標股數",
+            "trade_shares": "建議交易股數",
+            "estimated_trade_value": "估算交易金額",
+        }
+        return table[columns].rename(columns=rename_map)

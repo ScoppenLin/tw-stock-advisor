@@ -62,12 +62,16 @@ def run(
     if output_sink == "google":
         today = date.today()
         daily_df = report_generator._build_recommendation_csv(recommendations, today)
-        daily_md = report_generator._build_daily_markdown(recommendations, market_regime, today)
-        weekly_md = report_generator._build_weekly_markdown(recommendations, rebalance_plan, market_regime, today)
         sheet_client.write_dataframe("daily_recommendation", daily_df)
         sheet_client.write_dataframe("weekly_rebalance_plan", rebalance_plan)
-        sheet_client.write_lines("daily_report", daily_md.splitlines())
-        sheet_client.write_lines("weekly_report", weekly_md.splitlines())
+        sheet_client.write_sections(
+            "daily_report",
+            report_generator.build_daily_sheet_sections(recommendations, market_regime, today),
+        )
+        sheet_client.write_sections(
+            "weekly_report",
+            report_generator.build_weekly_sheet_sections(recommendations, rebalance_plan, market_regime, today),
+        )
         outputs["google_sheets"] = {"spreadsheet_id": sheet_client.spreadsheet_id, "status": "updated"}
     return outputs
 

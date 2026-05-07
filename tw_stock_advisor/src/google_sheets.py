@@ -74,6 +74,22 @@ class GoogleSheetsClient:
         values.extend([[index, line] for index, line in enumerate(lines, start=1)])
         worksheet.update(values, "A1")
 
+    def write_sections(self, worksheet_name: str, sections: list[tuple[str, pd.DataFrame]]) -> None:
+        worksheet = self._worksheet(worksheet_name, create=True)
+        worksheet.clear()
+        values: list[list[str]] = []
+        for title, df in sections:
+            values.append([title])
+            if df.empty:
+                values.append(["無資料"])
+                values.append([])
+                continue
+            clean = df.fillna("")
+            values.append(clean.columns.tolist())
+            values.extend(clean.astype(str).values.tolist())
+            values.append([])
+        worksheet.update(values, "A1")
+
     def bootstrap_from_csv(self, account: pd.DataFrame, portfolio: pd.DataFrame, watchlist: pd.DataFrame) -> None:
         self.write_dataframe("account", account)
         self.write_dataframe("portfolio", portfolio)
