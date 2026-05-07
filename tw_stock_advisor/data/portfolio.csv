@@ -1,0 +1,6 @@
+ticker,name,asset_type,shares,avg_cost,target_weight
+0050,元大台灣50,etf,0,0,0.50
+00878,國泰永續高股息,etf,0,0,0.25
+2330,台積電,core_stock,0,0,0.10
+2308,台達電,core_stock,0,0,0.05
+2454,聯發科,core_stock,0,0,0.05
