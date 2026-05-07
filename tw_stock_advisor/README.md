@@ -176,15 +176,15 @@ python3 src/main.py --mode all --data-source twse --input-source google --output
 
 建議 Google Sheet 分頁：
 
-- `account`
-- `portfolio`
-- `watchlist`
-- `daily_recommendation`
-- `weekly_rebalance_plan`
-- `daily_report`
-- `weekly_report`
+- `帳戶設定`
+- `目前持股`
+- `觀察清單`
+- `每日建議`
+- `每週再平衡`
+- `每日報告`
+- `每週報告`
 
-前三個分頁是輸入，後四個分頁由系統輸出。
+前三個分頁是輸入，後四個分頁由系統輸出。程式內部仍用英文代號，但實際 Google Sheet 分頁會顯示中文名稱。
 
 ### 1. 建立 Google Sheet
 
@@ -226,9 +226,9 @@ python3 src/main.py --bootstrap-google-sheets
 
 這會把本地 CSV 寫入 Google Sheet：
 
-- `data/account.csv` -> `account`
-- `data/portfolio.csv` -> `portfolio`
-- `data/watchlist.csv` -> `watchlist`
+- `data/account.csv` -> `帳戶設定`
+- `data/portfolio.csv` -> `目前持股`
+- `data/watchlist.csv` -> `觀察清單`
 
 ### 5. 從 Google Sheet 讀取並寫回結果
 
@@ -238,10 +238,10 @@ python3 src/main.py --mode all --data-source twse --input-source google --output
 
 執行後會寫回：
 
-- `daily_recommendation`
-- `weekly_rebalance_plan`
-- `daily_report`
-- `weekly_report`
+- `每日建議`
+- `每週再平衡`
+- `每日報告`
+- `每週報告`
 
 ### 6. GitHub Actions Secrets
 

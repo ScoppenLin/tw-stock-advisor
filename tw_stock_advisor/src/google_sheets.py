@@ -11,6 +11,17 @@ import pandas as pd
 from gspread.exceptions import WorksheetNotFound
 
 
+WORKSHEET_NAMES = {
+    "account": "帳戶設定",
+    "portfolio": "目前持股",
+    "watchlist": "觀察清單",
+    "daily_recommendation": "每日建議",
+    "weekly_rebalance_plan": "每週再平衡",
+    "daily_report": "每日報告",
+    "weekly_report": "每週報告",
+}
+
+
 @dataclass
 class GoogleSheetsClient:
     spreadsheet_id: str
@@ -69,6 +80,7 @@ class GoogleSheetsClient:
         self.write_dataframe("watchlist", watchlist)
 
     def _worksheet(self, worksheet_name: str, create: bool = False):
+        worksheet_name = WORKSHEET_NAMES.get(worksheet_name, worksheet_name)
         spreadsheet = self.client.open_by_key(self.spreadsheet_id)
         try:
             return spreadsheet.worksheet(worksheet_name)
