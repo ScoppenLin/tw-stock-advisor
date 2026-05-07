@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import pandas as pd
 
 from config import ACCOUNT_FILE, LATEST_PRICES_FILE, MARKET_INDICATORS_FILE, PORTFOLIO_FILE, PRICE_HISTORY_FILE, TOTAL_CAPITAL_FALLBACK, WATCHLIST_FILE
 from twse_client import TwseClient
+
+if TYPE_CHECKING:
+    from google_sheets import GoogleSheetsClient
 
 
 @dataclass
@@ -22,22 +26,41 @@ class DataLoader:
     feeds can later be added behind the same public methods.
     """
 
-    def load_portfolio(self) -> pd.DataFrame:
-        df = pd.read_csv(PORTFOLIO_FILE, dtype={"ticker": str})
+    def load_portfolio(self, source: str = "local", sheet_client: "GoogleSheetsClient | None" = None) -> pd.DataFrame:
+        if source == "google":
+            if sheet_client is None:
+                raise RuntimeError("sheet_client is required when portfolio source is google")
+            df = sheet_client.read_dataframe("portfolio")
+            if "ticker" in df.columns:
+                df["ticker"] = df["ticker"].astype(str).str.zfill(4)
+        else:
+            df = pd.read_csv(PORTFOLIO_FILE, dtype={"ticker": str})
         required = {"ticker", "name", "asset_type", "shares", "avg_cost", "target_weight"}
         self._validate_columns(df, required, PORTFOLIO_FILE.name)
         return df
 
-    def load_watchlist(self) -> pd.DataFrame:
-        df = pd.read_csv(WATCHLIST_FILE, dtype={"ticker": str})
+    def load_watchlist(self, source: str = "local", sheet_client: "GoogleSheetsClient | None" = None) -> pd.DataFrame:
+        if source == "google":
+            if sheet_client is None:
+                raise RuntimeError("sheet_client is required when watchlist source is google")
+            df = sheet_client.read_dataframe("watchlist")
+            if "ticker" in df.columns:
+                df["ticker"] = df["ticker"].astype(str).str.zfill(4)
+        else:
+            df = pd.read_csv(WATCHLIST_FILE, dtype={"ticker": str})
         required = {"ticker", "name", "asset_type", "sector"}
         self._validate_columns(df, required, WATCHLIST_FILE.name)
         return df
 
-    def load_account(self) -> dict:
-        if not ACCOUNT_FILE.exists():
+    def load_account(self, source: str = "local", sheet_client: "GoogleSheetsClient | None" = None) -> dict:
+        if source == "google":
+            if sheet_client is None:
+                raise RuntimeError("sheet_client is required when account source is google")
+            df = sheet_client.read_dataframe("account")
+        elif not ACCOUNT_FILE.exists():
             return {"total_capital": TOTAL_CAPITAL_FALLBACK, "reserve_cash_weight": 0.05}
-        df = pd.read_csv(ACCOUNT_FILE)
+        else:
+            df = pd.read_csv(ACCOUNT_FILE)
         required = {"total_capital", "reserve_cash_weight"}
         self._validate_columns(df, required, ACCOUNT_FILE.name)
         row = df.iloc[0]

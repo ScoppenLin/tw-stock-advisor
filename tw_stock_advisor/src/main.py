@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import argparse
+from datetime import date
 
+from config import ACCOUNT_FILE
 from data_loader import DataLoader
 from feature_builder import FeatureBuilder
 from market_regime import MarketRegimeDetector
@@ -14,7 +16,12 @@ from scoring_model import ScoringModel
 from stock_universe import StockUniverseBuilder
 
 
-def run(mode: str, source: str = "local") -> dict[str, dict[str, str]]:
+def run(
+    mode: str,
+    source: str = "local",
+    input_source: str = "local",
+    output_sink: str = "local",
+) -> dict[str, dict[str, str]]:
     data_loader = DataLoader()
     portfolio_manager = PortfolioManager()
     universe_builder = StockUniverseBuilder()
@@ -26,9 +33,15 @@ def run(mode: str, source: str = "local") -> dict[str, dict[str, str]]:
     market_regime_detector = MarketRegimeDetector()
     rebalancer = Rebalancer()
 
-    portfolio_input = data_loader.load_portfolio()
-    account = data_loader.load_account()
-    watchlist = data_loader.load_watchlist()
+    sheet_client = None
+    if input_source == "google" or output_sink == "google":
+        from google_sheets import GoogleSheetsClient
+
+        sheet_client = GoogleSheetsClient.from_env()
+
+    portfolio_input = data_loader.load_portfolio(source=input_source, sheet_client=sheet_client)
+    account = data_loader.load_account(source=input_source, sheet_client=sheet_client)
+    watchlist = data_loader.load_watchlist(source=input_source, sheet_client=sheet_client)
     tickers = sorted(set(portfolio_input["ticker"]).union(set(watchlist["ticker"])))
     market_data = data_loader.load_market_data(tickers, source=source)
 
@@ -46,7 +59,36 @@ def run(mode: str, source: str = "local") -> dict[str, dict[str, str]]:
         outputs["daily"] = report_generator.write_daily_reports(recommendations, market_regime)
     if mode in {"weekly", "all"}:
         outputs["weekly"] = report_generator.write_weekly_reports(recommendations, rebalance_plan, market_regime)
+    if output_sink == "google":
+        today = date.today()
+        daily_df = report_generator._build_recommendation_csv(recommendations, today)
+        daily_md = report_generator._build_daily_markdown(recommendations, market_regime, today)
+        weekly_md = report_generator._build_weekly_markdown(recommendations, rebalance_plan, market_regime, today)
+        sheet_client.write_dataframe("daily_recommendation", daily_df)
+        sheet_client.write_dataframe("weekly_rebalance_plan", rebalance_plan)
+        sheet_client.write_lines("daily_report", daily_md.splitlines())
+        sheet_client.write_lines("weekly_report", weekly_md.splitlines())
+        outputs["google_sheets"] = {"spreadsheet_id": sheet_client.spreadsheet_id, "status": "updated"}
     return outputs
+
+
+def bootstrap_google_sheets() -> None:
+    from google_sheets import GoogleSheetsClient
+
+    data_loader = DataLoader()
+    sheet_client = GoogleSheetsClient.from_env()
+    account = pd_read_csv_safe(ACCOUNT_FILE)
+    portfolio = data_loader.load_portfolio()
+    watchlist = data_loader.load_watchlist()
+    sheet_client.bootstrap_from_csv(account, portfolio, watchlist)
+    print("Google Sheet template initialized:")
+    print(f"- spreadsheet_id: {sheet_client.spreadsheet_id}")
+
+
+def pd_read_csv_safe(path):
+    import pandas as pd
+
+    return pd.read_csv(path, dtype={"ticker": str})
 
 
 def parse_args() -> argparse.Namespace:
@@ -63,16 +105,40 @@ def parse_args() -> argparse.Namespace:
         default="local",
         help="Latest price source. TWSE falls back to local CSV if unavailable. Default: local",
     )
+    parser.add_argument(
+        "--input-source",
+        choices=["local", "google"],
+        default="local",
+        help="Where account, portfolio, and watchlist are read from. Default: local",
+    )
+    parser.add_argument(
+        "--output-sink",
+        choices=["local", "google"],
+        default="local",
+        help="Where reports are written in addition to local files. Default: local",
+    )
+    parser.add_argument(
+        "--bootstrap-google-sheets",
+        action="store_true",
+        help="Create/update account, portfolio, and watchlist worksheets from local CSV files, then exit",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    outputs = run(args.mode, args.data_source)
+    if args.bootstrap_google_sheets:
+        bootstrap_google_sheets()
+        return
+    outputs = run(args.mode, args.data_source, args.input_source, args.output_sink)
     print("Reports generated:")
     for report_type, paths in outputs.items():
-        print(f"- {report_type} CSV: {paths['csv']}")
-        print(f"- {report_type} Markdown: {paths['markdown']}")
+        if "csv" in paths and "markdown" in paths:
+            print(f"- {report_type} CSV: {paths['csv']}")
+            print(f"- {report_type} Markdown: {paths['markdown']}")
+        else:
+            details = ", ".join(f"{key}={value}" for key, value in paths.items())
+            print(f"- {report_type}: {details}")
 
 
 if __name__ == "__main__":

@@ -64,6 +64,13 @@ python3 src/main.py --mode all
 - `--data-source local`：使用本地 CSV，適合每日穩定排程與測試
 - `--data-source twse`：嘗試抓取 TWSE 盤後上市個股收盤價，失敗時自動退回本地 CSV
 
+可用輸入/輸出位置：
+
+- `--input-source local`：從 `data/*.csv` 讀取 account、portfolio、watchlist
+- `--input-source google`：從 Google Sheet 的 `account`、`portfolio`、`watchlist` 分頁讀取
+- `--output-sink local`：只輸出本地報告
+- `--output-sink google`：同時把建議與報告寫回 Google Sheet
+
 執行後會輸出：
 
 - `reports/daily/daily_recommendation.csv`
@@ -120,6 +127,12 @@ MVP 預設讀取：
 python3 src/main.py --mode all --data-source twse
 ```
 
+使用 Google Sheet：
+
+```bash
+python3 src/main.py --mode all --data-source twse --input-source google --output-sink google
+```
+
 目前 `twse_client.py` 先支援 TWSE 盤後上市個股日成交資訊，並保留讀取 OpenAPI swagger catalog 的方法，後續可逐步加入法人、估值、月營收與 ETF 資料。
 
 ## 投資邏輯
@@ -158,3 +171,97 @@ python3 src/main.py --mode all --data-source twse
 - 從區間高點回落幅度
 
 `src/scoring_model.py` 會依市場狀態套用不同權重。強多市場提高動能權重，偏弱市場提高風險權重。
+
+## Google Sheet 設定
+
+建議 Google Sheet 分頁：
+
+- `account`
+- `portfolio`
+- `watchlist`
+- `daily_recommendation`
+- `weekly_rebalance_plan`
+- `daily_report`
+- `weekly_report`
+
+前三個分頁是輸入，後四個分頁由系統輸出。
+
+### 1. 建立 Google Sheet
+
+新增一份 Google Sheet，名稱例如：
+
+```text
+TW Stock Advisor
+```
+
+先不用手動建立所有分頁，程式可以初始化。
+
+### 2. 建立 Google Cloud Service Account
+
+1. 到 Google Cloud Console 建立或選擇一個 Project。
+2. 啟用 Google Sheets API。
+3. 建立 Service Account。
+4. 建立 JSON key，下載 JSON。
+5. 複製 JSON 裡的 `client_email`。
+6. 回到 Google Sheet，按「共用」，把 `client_email` 加進去，權限選「編輯者」。
+
+### 3. 設定環境變數
+
+本機測試可以使用：
+
+```bash
+export GOOGLE_SHEET_ID="你的 Google Sheet ID"
+export GOOGLE_SERVICE_ACCOUNT_FILE="/path/to/service-account.json"
+```
+
+Google Sheet ID 是網址中 `/d/` 和 `/edit` 中間那段。
+
+### 4. 初始化 Google Sheet 分頁
+
+在本機執行：
+
+```bash
+python3 src/main.py --bootstrap-google-sheets
+```
+
+這會把本地 CSV 寫入 Google Sheet：
+
+- `data/account.csv` -> `account`
+- `data/portfolio.csv` -> `portfolio`
+- `data/watchlist.csv` -> `watchlist`
+
+### 5. 從 Google Sheet 讀取並寫回結果
+
+```bash
+python3 src/main.py --mode all --data-source twse --input-source google --output-sink google
+```
+
+執行後會寫回：
+
+- `daily_recommendation`
+- `weekly_rebalance_plan`
+- `daily_report`
+- `weekly_report`
+
+### 6. GitHub Actions Secrets
+
+到 GitHub repo：
+
+```text
+Settings -> Secrets and variables -> Actions -> New repository secret
+```
+
+新增：
+
+```text
+GOOGLE_SHEET_ID
+GOOGLE_SERVICE_ACCOUNT_JSON_B64
+```
+
+建議把 service account JSON 轉成 base64 後放入 `GOOGLE_SERVICE_ACCOUNT_JSON_B64`：
+
+```bash
+base64 -i service-account.json | pbcopy
+```
+
+GitHub Actions 偵測到這兩個 secrets 後，會自動改用 Google Sheet 作為輸入與輸出；沒有設定時會退回本地 CSV 與 artifact。
