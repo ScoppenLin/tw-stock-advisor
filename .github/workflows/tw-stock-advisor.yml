@@ -38,13 +38,18 @@ jobs:
         env:
           PYTHONDONTWRITEBYTECODE: "1"
           GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
           GOOGLE_SERVICE_ACCOUNT_JSON_B64: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON_B64 }}
         run: |
-          if [ -n "$GOOGLE_SHEET_ID" ] && [ -n "$GOOGLE_SERVICE_ACCOUNT_JSON_B64" ]; then
-            python src/main.py --mode all --data-source twse --input-source google --output-sink google
-          else
-            python src/main.py --mode all --data-source twse
+          if [ -z "$GOOGLE_SHEET_ID" ]; then
+            echo "::error::GOOGLE_SHEET_ID secret is required to update Google Sheets."
+            exit 1
           fi
+          if [ -z "$GOOGLE_SERVICE_ACCOUNT_JSON_B64" ] && [ -z "$GOOGLE_SERVICE_ACCOUNT_JSON" ]; then
+            echo "::error::Set either GOOGLE_SERVICE_ACCOUNT_JSON_B64 or GOOGLE_SERVICE_ACCOUNT_JSON secret."
+            exit 1
+          fi
+          python src/main.py --mode all --data-source twse --input-source google --output-sink google
 
       - name: Upload reports
         uses: actions/upload-artifact@v4
@@ -56,3 +61,19 @@ jobs:
             tw_stock_advisor/reports/weekly/*.csv
             tw_stock_advisor/reports/weekly/*.md
           if-no-files-found: error
+
+      - name: Email reports
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          EMAIL_SUBJECT: 台股投資建議報告
+        run: |
+          if [ -n "$SMTP_HOST" ] && [ -n "$SMTP_USERNAME" ] && [ -n "$SMTP_PASSWORD" ] && [ -n "$EMAIL_TO" ]; then
+            python src/email_report.py
+          else
+            echo "Email secrets not configured; skipping email delivery."
+          fi

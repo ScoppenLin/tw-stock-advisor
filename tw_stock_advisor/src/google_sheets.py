@@ -44,7 +44,10 @@ class GoogleSheetsClient:
         file_path = os.environ.get("GOOGLE_SERVICE_ACCOUNT_FILE")
 
         if raw_b64:
-            return json.loads(base64.b64decode(raw_b64).decode("utf-8"))
+            try:
+                return json.loads(base64.b64decode(raw_b64).decode("utf-8"))
+            except (ValueError, json.JSONDecodeError):
+                return json.loads(raw_b64)
         if raw_json:
             return json.loads(raw_json)
         if file_path:

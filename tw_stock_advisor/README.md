@@ -258,10 +258,49 @@ GOOGLE_SHEET_ID
 GOOGLE_SERVICE_ACCOUNT_JSON_B64
 ```
 
-建議把 service account JSON 轉成 base64 後放入 `GOOGLE_SERVICE_ACCOUNT_JSON_B64`：
+建議把 service account JSON 轉成 base64 後放入 `GOOGLE_SERVICE_ACCOUNT_JSON_B64`。如果不想轉 base64，也可以改新增 `GOOGLE_SERVICE_ACCOUNT_JSON`，直接貼上原始 JSON：
 
 ```bash
 base64 -i service-account.json | pbcopy
 ```
 
-GitHub Actions 偵測到這兩個 secrets 後，會自動改用 Google Sheet 作為輸入與輸出；沒有設定時會退回本地 CSV 與 artifact。
+GitHub Actions 會固定使用 Google Sheet 作為輸入與輸出；如果缺少 `GOOGLE_SHEET_ID` 或 service account secret，排程會明確失敗並顯示缺少哪個設定。
+
+## Email 報告
+
+GitHub Actions 可在每日執行完成後寄出 email。到 GitHub repo：
+
+```text
+Settings -> Secrets and variables -> Actions -> New repository secret
+```
+
+新增：
+
+```text
+SMTP_HOST
+SMTP_PORT
+SMTP_USERNAME
+SMTP_PASSWORD
+EMAIL_TO
+EMAIL_FROM
+```
+
+`EMAIL_FROM` 可省略，省略時會使用 `SMTP_USERNAME`。
+
+Gmail 範例：
+
+```text
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=你的 Gmail
+SMTP_PASSWORD=Gmail App Password
+EMAIL_TO=你的收件信箱
+EMAIL_FROM=你的 Gmail
+```
+
+設定完成後，GitHub Actions 每次成功產生報告後會寄出：
+
+- 每日報告內容
+- 每週報告內容
+- `daily_recommendation.csv`
+- `weekly_rebalance_plan.csv`
