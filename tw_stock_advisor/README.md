@@ -277,23 +277,24 @@ Settings -> Secrets and variables -> Actions -> New repository secret
 新增：
 
 ```text
-SMTP_HOST
-SMTP_PORT
-SMTP_USERNAME
-SMTP_PASSWORD
-EMAIL_FROM
+MAIL_USERNAME
+MAIL_PASSWORD
 ```
 
-報告固定寄到 `scoppen.lin@gmail.com`。`EMAIL_FROM` 可省略，省略時會使用 `SMTP_USERNAME`。
-
-Gmail 範例：
+系統已預設使用 Gmail SMTP：
 
 ```text
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
-SMTP_USERNAME=你的 Gmail
-SMTP_PASSWORD=Gmail App Password
-EMAIL_FROM=你的 Gmail
+```
+
+報告固定寄到 `scoppen.lin@gmail.com`。寄件人會使用 `MAIL_USERNAME`。
+
+Gmail 範例：
+
+```text
+MAIL_USERNAME=你的 Gmail
+MAIL_PASSWORD=Gmail App Password
 ```
 
 設定完成後，GitHub Actions 每次成功產生報告後會寄出：

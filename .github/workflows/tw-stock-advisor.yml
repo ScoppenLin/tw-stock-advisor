@@ -64,16 +64,16 @@ jobs:
 
       - name: Email reports
         env:
-          SMTP_HOST: ${{ secrets.SMTP_HOST }}
-          SMTP_PORT: ${{ secrets.SMTP_PORT }}
-          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
-          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
-          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          SMTP_HOST: smtp.gmail.com
+          SMTP_PORT: "587"
+          SMTP_USERNAME: ${{ secrets.MAIL_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+          EMAIL_FROM: ${{ secrets.MAIL_USERNAME }}
           EMAIL_TO: scoppen.lin@gmail.com
           EMAIL_SUBJECT: 台股投資建議報告
         run: |
-          if [ -n "$SMTP_HOST" ] && [ -n "$SMTP_USERNAME" ] && [ -n "$SMTP_PASSWORD" ]; then
+          if [ -n "$SMTP_USERNAME" ] && [ -n "$SMTP_PASSWORD" ]; then
             python src/email_report.py
           else
-            echo "Email secrets not configured; skipping email delivery."
+            echo "::warning::MAIL_USERNAME or MAIL_PASSWORD secret is missing; skipping email delivery."
           fi
