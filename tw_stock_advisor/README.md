@@ -281,11 +281,10 @@ SMTP_HOST
 SMTP_PORT
 SMTP_USERNAME
 SMTP_PASSWORD
-EMAIL_TO
 EMAIL_FROM
 ```
 
-`EMAIL_FROM` 可省略，省略時會使用 `SMTP_USERNAME`。
+報告固定寄到 `scoppen.lin@gmail.com`。`EMAIL_FROM` 可省略，省略時會使用 `SMTP_USERNAME`。
 
 Gmail 範例：
 
@@ -294,7 +293,6 @@ SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USERNAME=你的 Gmail
 SMTP_PASSWORD=Gmail App Password
-EMAIL_TO=你的收件信箱
 EMAIL_FROM=你的 Gmail
 ```
 

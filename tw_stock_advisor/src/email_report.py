@@ -19,7 +19,7 @@ def main() -> None:
     smtp_port = int(os.environ.get("SMTP_PORT", "587"))
     smtp_username = _required_env("SMTP_USERNAME")
     smtp_password = _required_env("SMTP_PASSWORD")
-    email_to = _required_env("EMAIL_TO")
+    email_to = os.environ.get("EMAIL_TO", "scoppen.lin@gmail.com")
     email_from = os.environ.get("EMAIL_FROM", smtp_username)
 
     message = EmailMessage()
