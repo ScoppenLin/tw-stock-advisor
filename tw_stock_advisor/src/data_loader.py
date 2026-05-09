@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 from typing import TYPE_CHECKING
 
 import pandas as pd
@@ -31,12 +32,11 @@ class DataLoader:
             if sheet_client is None:
                 raise RuntimeError("sheet_client is required when portfolio source is google")
             df = sheet_client.read_dataframe("portfolio")
-            if "ticker" in df.columns:
-                df["ticker"] = df["ticker"].astype(str).str.zfill(4)
         else:
             df = pd.read_csv(PORTFOLIO_FILE, dtype={"ticker": str})
         required = {"ticker", "name", "asset_type", "shares", "avg_cost", "target_weight"}
         self._validate_columns(df, required, PORTFOLIO_FILE.name)
+        df = self._normalize_tickers(df)
         return df
 
     def load_watchlist(self, source: str = "local", sheet_client: "GoogleSheetsClient | None" = None) -> pd.DataFrame:
@@ -44,12 +44,11 @@ class DataLoader:
             if sheet_client is None:
                 raise RuntimeError("sheet_client is required when watchlist source is google")
             df = sheet_client.read_dataframe("watchlist")
-            if "ticker" in df.columns:
-                df["ticker"] = df["ticker"].astype(str).str.zfill(4)
         else:
             df = pd.read_csv(WATCHLIST_FILE, dtype={"ticker": str})
         required = {"ticker", "name", "asset_type", "sector"}
         self._validate_columns(df, required, WATCHLIST_FILE.name)
+        df = self._normalize_tickers(df)
         return df
 
     def load_account(self, source: str = "local", sheet_client: "GoogleSheetsClient | None" = None) -> dict:
@@ -156,3 +155,31 @@ class DataLoader:
         missing = required.difference(df.columns)
         if missing:
             raise ValueError(f"{source_name} missing required columns: {sorted(missing)}")
+
+    @staticmethod
+    def _normalize_tickers(df: pd.DataFrame) -> pd.DataFrame:
+        normalized = df.copy()
+        normalized["ticker"] = [
+            DataLoader._normalize_ticker(ticker, asset_type)
+            for ticker, asset_type in zip(normalized["ticker"], normalized["asset_type"])
+        ]
+        return normalized
+
+    @staticmethod
+    def _normalize_ticker(ticker, asset_type) -> str:
+        raw = str(ticker).strip()
+        raw = re.sub(r"\.0$", "", raw)
+        raw = re.sub(r"\D", "", raw)
+        if not raw:
+            return ""
+
+        if str(asset_type).strip().lower() == "etf":
+            if len(raw) <= 2:
+                return raw.zfill(4)
+            if len(raw) == 3:
+                return raw.zfill(5)
+            if len(raw) == 4 and raw.startswith("6"):
+                return raw.zfill(6)
+            return raw
+
+        return raw.zfill(4) if len(raw) < 4 else raw
