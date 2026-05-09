@@ -29,8 +29,7 @@ def main() -> None:
     message["Subject"] = os.environ.get("EMAIL_SUBJECT", "台股投資建議報告")
     message["From"] = email_from
     message["To"] = email_to
-    message.set_content(_build_body())
-    message.add_alternative(_build_html_body(), subtype="html")
+    message.set_content(_build_html_body(), subtype="html")
 
     for attachment in [DAILY_CSV, WEEKLY_CSV]:
         if attachment.exists():
@@ -57,12 +56,7 @@ def main() -> None:
 
 
 def _build_body() -> str:
-    sections = ["台股投資建議系統已完成今日自動執行。"]
-    if DAILY_REPORT.exists():
-        sections.extend(["", "===== 每日報告 =====", DAILY_REPORT.read_text(encoding="utf-8")])
-    if WEEKLY_REPORT.exists():
-        sections.extend(["", "===== 每週報告 =====", WEEKLY_REPORT.read_text(encoding="utf-8")])
-    return "\n".join(sections)
+    return "台股投資建議系統已完成今日自動執行，請使用支援 HTML 的郵件用戶端查看表格。"
 
 
 def _build_html_body() -> str:
