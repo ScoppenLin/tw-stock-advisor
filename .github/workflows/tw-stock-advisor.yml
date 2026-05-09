@@ -71,6 +71,7 @@ jobs:
           EMAIL_FROM: ${{ secrets.MAIL_USERNAME }}
           EMAIL_TO: scoppen.lin@gmail.com
           EMAIL_SUBJECT: 台股投資建議報告
+          REPORT_COMMIT_SHA: ${{ github.sha }}
         run: |
           if [ -n "$SMTP_USERNAME" ] && [ -n "$SMTP_PASSWORD" ]; then
             python src/email_report.py

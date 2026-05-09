@@ -63,6 +63,7 @@ def _build_html_body() -> str:
     daily = _read_csv(DAILY_CSV)
     weekly = _read_csv(WEEKLY_CSV)
     highlights = _daily_highlights(daily)
+    version = _report_version()
 
     return f"""<!doctype html>
 <html lang="zh-Hant">
@@ -97,6 +98,7 @@ def _build_html_body() -> str:
     <div class="header">
       <h1>台股投資建議報告</h1>
       <p>系統已完成自動執行，以下表格為本次產出的投資建議摘要。</p>
+      {version}
     </div>
     <div class="content">
       <h2>重點摘要</h2>
@@ -112,6 +114,13 @@ def _build_html_body() -> str:
   </div>
 </body>
 </html>"""
+
+
+def _report_version() -> str:
+    sha = os.environ.get("REPORT_COMMIT_SHA", "").strip()
+    if not sha:
+        return ""
+    return f'<p>報告版本：{escape(sha[:7])}</p>'
 
 
 def _read_csv(path: Path) -> pd.DataFrame:
